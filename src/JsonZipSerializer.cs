@@ -17,7 +17,7 @@ namespace Json.Zip
 
         public static JsonZipSerializer Instance { get; } = new JsonZipSerializer();
 
-        public async Task<T> DeserializeAsync<T>(Stream inputStream, bool keepOpen = false, Func<Stream, Stream> decompressFactory = null, CancellationToken cancellationToken = default)
+        public async Task<T> DeserializeAsync<T>(Stream inputStream, bool leaveOpen = false, Func<Stream, Stream> decompressFactory = null, CancellationToken cancellationToken = default)
         {
             decompressFactory = decompressFactory ?? ((iStream) => new BrotliStream(iStream, CompressionMode.Decompress));
 
@@ -29,7 +29,7 @@ namespace Json.Zip
                 output.Position = 0;
                 result = await JsonSerializer.DeserializeAsync<T>(output, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
-            if (!keepOpen)
+            if (!leaveOpen)
             {
                 inputStream.Close();
             }
@@ -43,7 +43,7 @@ namespace Json.Zip
             T result = default;
             using (FileStream input = File.OpenRead(inputFilePath))
             {
-                result = await DeserializeAsync<T>(input, keepOpen: true, decompressFactory, cancellationToken);
+                result = await DeserializeAsync<T>(input, leaveOpen: false, decompressFactory, cancellationToken);
             }
             return result;
         }

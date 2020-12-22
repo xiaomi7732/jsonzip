@@ -21,7 +21,7 @@ namespace Json.Zip.Tests
             Model deserialized = null;
             using (Stream outputStream = await JsonZipSerializer.Instance.SerializeAsync(model).ConfigureAwait(false))
             {
-                deserialized = await JsonZipSerializer.Instance.DeserializeAsync<Model>(outputStream, keepOpen: true).ConfigureAwait(false);
+                deserialized = await JsonZipSerializer.Instance.DeserializeAsync<Model>(outputStream).ConfigureAwait(false);
             }
 
             Assert.NotNull(deserialized);
@@ -39,7 +39,7 @@ namespace Json.Zip.Tests
             Model deserialized = null;
             using (Stream outputStream = await JsonZipSerializer.Instance.SerializeAsync(model, (int)CompressionLevel.Optimal, compressorFactory: (outStream, level) => new GZipStream(outStream, level, leaveOpen: true)).ConfigureAwait(false))
             {
-                deserialized = await JsonZipSerializer.Instance.DeserializeAsync<Model>(outputStream, decompressFactory: (outStream) => new GZipStream(outStream, CompressionMode.Decompress), keepOpen: true).ConfigureAwait(false);
+                deserialized = await JsonZipSerializer.Instance.DeserializeAsync<Model>(outputStream, decompressFactory: (outStream) => new GZipStream(outStream, CompressionMode.Decompress), leaveOpen: false).ConfigureAwait(false);
             }
 
             Assert.NotNull(deserialized);
@@ -62,7 +62,7 @@ namespace Json.Zip.Tests
             }
 
             string fileName = "testoutput.json.compressed";
-            await JsonZipSerializer.Instance.SerializeAsync(list, "testoutput.json.compressed").ConfigureAwait(false);
+            await JsonZipSerializer.Instance.SerializeAsync(list, fileName).ConfigureAwait(false);
 
             Assert.True(File.Exists(fileName));
 
@@ -70,7 +70,37 @@ namespace Json.Zip.Tests
         }
 
         [Fact]
-        public async Task ShouldCompressTheFile()
+        public async Task ShouldReadFile()
+        {
+            List<Model> list = new List<Model>();
+            for (var i = 0; i < 100; i++)
+            {
+                Model model = new Model()
+                {
+                    Id = 100,
+                    DOB = DateTime.Now,
+                    Name = "Alice" + i.ToString()
+                };
+                list.Add(model);
+            }
+
+            string fileName = "testinput.json.compressed";
+            await JsonZipSerializer.Instance.SerializeAsync(list, fileName).ConfigureAwait(false);
+
+            try
+            {
+                list = null;
+                list = await JsonZipSerializer.Instance.DeserializeAsync<List<Model>>(fileName).ConfigureAwait(false);
+                Assert.NotNull(list);
+            }
+            finally
+            {
+                TryDeleteFile(fileName);
+            }
+        }
+
+        [Fact]
+        public async Task ShouldCompressTheContent()
         {
             List<Model> list = new List<Model>();
             for (var i = 0; i < 100; i++)
