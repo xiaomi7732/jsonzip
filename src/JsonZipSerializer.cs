@@ -10,6 +10,7 @@ namespace Json.Zip
 {
     public class JsonZipSerializer : IJsonZipSerializer
     {
+        // Why 6: https://github.com/dotnet/runtime/issues/26097
         private const int DefaultDecompressionLevel = 6;
         private JsonZipSerializer()
         {
@@ -60,17 +61,10 @@ namespace Json.Zip
         public async Task<Stream> SerializeAsync<T>(T obj, int compressionLevel = DefaultDecompressionLevel, Func<Stream, CompressionLevel, Stream> compressorFactory = null, CancellationToken cancellationToken = default)
         {
             compressorFactory = compressorFactory ?? ((oStream, level) => new BrotliStream(oStream, level, leaveOpen: true));
-
             Stream outputStream = new MemoryStream();
-            using (MemoryStream inputStream = new MemoryStream())
+            using (Stream compressionStream = compressorFactory(outputStream, (CompressionLevel)compressionLevel))
             {
-                await JsonSerializer.SerializeAsync(inputStream, obj, cancellationToken: cancellationToken).ConfigureAwait(false);
-                inputStream.Position = 0;
-
-                using (Stream compressionStream = compressorFactory(outputStream, (CompressionLevel)compressionLevel))
-                {
-                    await inputStream.CopyToAsync(compressionStream).ConfigureAwait(false);
-                }
+                await JsonSerializer.SerializeAsync(compressionStream, obj, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             outputStream.Position = 0;
             return outputStream;
